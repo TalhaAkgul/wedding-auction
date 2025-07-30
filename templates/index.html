@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wedding Auction</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 10px; }
+    img { width: 90%; max-width: 300px; border-radius: 10px; }
+    .card { margin: 20px auto; padding: 10px; border: 1px solid #ccc; border-radius: 8px; max-width: 350px; }
+    .button { display: inline-block; padding: 10px 20px; margin-top: 10px; background: #007BFF; color: white; border: none; border-radius: 5px; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <h1>🎨 Wedding Painting Auction</h1>
+  {% for painting in paintings %}
+    <div class="card">
+      <h3>{{ painting.title }}</h3>
+      <img src="{{ url_for('static', filename='images/' + painting.image) }}" alt="{{ painting.title }}">
+      <p><strong>Current Bid:</strong> ${{ painting.bid }}{% if painting.name %} by {{ painting.name }}{% endif %}</p>
+      <a class="button" href="{{ url_for('bid', painting_id=painting.id) }}">Place a Bid</a>
+    </div>
+  {% endfor %}
+</body>
+</html>
