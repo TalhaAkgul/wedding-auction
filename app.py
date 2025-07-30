@@ -46,4 +46,4 @@ def bid(painting_id):
     return render_template("bid.html", painting=painting)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
