@@ -1,30 +1,71 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import os
+import firebase_admin
+from firebase_admin import credentials, firestore
+from dotenv import load_dotenv
+load_dotenv()
+
 
 app = Flask(__name__)
-app.secret_key = "supersecretkey"  # For flashing messages
+app.secret_key = os.environ.get("SECRET_KEY", "fallback-key")
 
-# Load initial painting data
-PAINTINGS = [
-    {"id": 1, "title": "Painting 1", "image": "painting1.jpg", "bid": 0, "name": ""},
-    {"id": 2, "title": "Painting 2", "image": "painting2.jpg", "bid": 0, "name": ""},
-    {"id": 3, "title": "Painting 3", "image": "painting3.jpg", "bid": 0, "name": ""},
-    {"id": 4, "title": "Painting 4", "image": "painting4.jpg", "bid": 0, "name": ""},
-    {"id": 5, "title": "Painting 5", "image": "painting5.jpg", "bid": 0, "name": ""},
-    {"id": 6, "title": "Painting 6", "image": "painting6.jpg", "bid": 0, "name": ""},
-    {"id": 7, "title": "Painting 7", "image": "painting7.jpg", "bid": 0, "name": ""},
-    {"id": 8, "title": "Painting 8", "image": "painting8.jpg", "bid": 0, "name": ""}
-]
+# Initialize Firebase
+# Replace with your actual file name
+cred = credentials.Certificate("firebase-key.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# Load painting IDs to display (IDs 1 to 8)
+PAINTING_IDS = [str(i) for i in range(1, 9)]
+
 
 @app.route('/')
 def index():
-    return render_template("index.html", paintings=PAINTINGS)
+    paintings = []
+    for pid in PAINTING_IDS:
+        doc = db.collection("paintings").document(pid).get()
+        if doc.exists:
+            data = doc.to_dict()
 
-@app.route('/bid/<int:painting_id>', methods=["GET", "POST"])
+            # Get highest bid from subcollection
+            bids_ref = db.collection("paintings").document(
+                pid).collection("bids")
+            top_bid = bids_ref.order_by(
+                "amount", direction=firestore.Query.DESCENDING).limit(1).get()
+            if top_bid:
+                highest_bid = top_bid[0].to_dict()
+                amount = highest_bid.get("amount", 0)
+                name = highest_bid.get("name", "")
+            else:
+                amount = 0
+                name = ""
+
+            paintings.append({
+                "id": pid,
+                "title": data.get("title", f"Painting {pid}"),
+                "image": data.get("image", f"painting{pid}.jpg"),
+                "bid": amount,
+                "name": name
+            })
+    return render_template("index.html", paintings=paintings)
+
+
+@app.route('/bid/<painting_id>', methods=["GET", "POST"])
 def bid(painting_id):
-    painting = next((p for p in PAINTINGS if p["id"] == painting_id), None)
-    if not painting:
+    painting_ref = db.collection("paintings").document(painting_id)
+    doc = painting_ref.get()
+    if not doc.exists:
         return "Painting not found", 404
+
+    painting = doc.to_dict()
+    painting.setdefault("title", f"Painting {painting_id}")
+    painting.setdefault("image", f"painting{painting_id}.jpg")
+
+    # Get highest current bid
+    bids_ref = painting_ref.collection("bids")
+    top_bid = bids_ref.order_by(
+        "amount", direction=firestore.Query.DESCENDING).limit(1).get()
+    current_bid = top_bid[0].to_dict()["amount"] if top_bid else 0
 
     if request.method == "POST":
         name = request.form.get("name")
@@ -34,16 +75,25 @@ def bid(painting_id):
             flash("Invalid amount")
             return redirect(url_for("bid", painting_id=painting_id))
 
-        if amount > painting["bid"]:
-            painting["bid"] = amount
-            painting["name"] = name
-            flash("Bid placed successfully!")
+        if amount > current_bid:
+            bids_ref.add({
+                "name": name,
+                "amount": amount,
+                "timestamp": firestore.SERVER_TIMESTAMP
+            })
+            flash("Bid placed successfully!", "success")
             return redirect(url_for("index"))
         else:
-            flash(f"Your bid must be higher than ${painting['bid']}")
+            flash(f"Your bid must be higher than DKK {current_bid}", "error")
             return redirect(url_for("bid", painting_id=painting_id))
 
-    return render_template("bid.html", painting=painting)
+    return render_template("bid.html", painting={
+        "id": painting_id,
+        "title": painting["title"],
+        "image": painting["image"],
+        "bid": current_bid
+    })
+
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
