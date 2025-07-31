@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bid on {{ painting.title }}</title>
+    <title>Byd på {{ painting.title }}</title>
     <style>
         body {
             font-family: sans-serif;
@@ -24,27 +24,85 @@
         .error {
             color: red;
         }
+
+        .flash-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #00b894;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 10px;
+            font-weight: bold;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            text-align: center;
+            animation: fadeInOut 3s ease-in-out forwards;
+        }
+
+        .flash-popup.success {
+            background-color: #00b894;
+            /* green */
+        }
+
+        .flash-popup.error {
+            background-color: #d63031;
+            /* red */
+        }
+
+        @keyframes fadeInOut {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -60%);
+            }
+
+            10% {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+
+            90% {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -40%);
+            }
+        }
     </style>
 </head>
 
 <body>
-    <h2>Bid on {{ painting.title }}</h2>
+    <h2>Byd på {{ painting.title }}</h2>
     <img src="{{ url_for('static', filename='images/' + painting.image) }}" width="300" alt="{{ painting.title }}"><br>
-    <p><strong>Current Highest Bid:</strong> ${{ painting.bid }}{% if painting.name %} by {{ painting.name }}{% endif %}
+    <p><strong>Højeste Bud:</strong> DKK {{ painting.bid }}{% if painting.name %} by {{ painting.name }}{% endif %}
     </p>
 
-    {% with messages = get_flashed_messages() %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-    <div class="error">{{ messages[0] }}</div>
+    {% for category, message in messages %}
+    <div id="flash-message" class="flash-popup {{ category }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+    <script>
+        setTimeout(() => {
+            document.getElementById("flash-message").style.display = "none";
+        }, 3000);
+    </script>
     {% endif %}
     {% endwith %}
 
     <form method="POST">
-        <input type="text" name="name" placeholder="Your Name" required><br>
-        <input type="number" step="0.01" name="amount" placeholder="Your Bid ($)" required><br>
-        <button type="submit">Submit Bid</button>
+        <input type="text" name="name" placeholder="Dit Navn" required><br>
+        <input type="number" step="0.01" name="amount" placeholder="Dit Bud (DKK)" required><br>
+        <button type="submit">Indsend</button>
     </form>
-    <a href="{{ url_for('index') }}">⬅ Back to Gallery</a>
+    <a href="{{ url_for('index') }}">⬅ Tilbage til Galleriet</a>
 </body>
 
 </html>
