@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import os
+import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 from dotenv import load_dotenv
@@ -11,7 +12,9 @@ app.secret_key = os.environ.get("SECRET_KEY", "fallback-key")
 
 # Initialize Firebase
 # Replace with your actual file name
-cred = credentials.Certificate("firebase-key.json")
+firebase_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+cred_dict = json.loads(firebase_json)
+cred = credentials.Certificate(cred_dict)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
